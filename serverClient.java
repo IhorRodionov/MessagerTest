@@ -11,13 +11,16 @@ public class serverClient extends Thread {
         in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         out = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
         this.start();
-        this.clientSocket.setSoTimeout(100000);
     }
 
     @Override
     public void run() {
         while(true) {
             try {
+                String nick = in.readLine();
+                for(serverClient cl: server.serverList){
+                    cl.send(nick+" joined server");
+                }
 
                 while (true){
                     String word = in.readLine();
@@ -25,19 +28,16 @@ public class serverClient extends Thread {
                         this.CloseConnection();
                         break;
                     }
-                    System.out.println(clientSocket.getLocalSocketAddress()+": "+word);
+                    System.out.println(clientSocket.getRemoteSocketAddress()+": "+word);
                     for(serverClient cl: server.serverList){
-                            cl.send(word);
+                        cl.send(word);
                     }
                 }
             } catch (SocketTimeoutException s) {
-                System.out.println("Socket time ended: "+clientSocket.getLocalSocketAddress());
                 this.CloseConnection();
                 break;
             } catch (IOException e) {
-                System.out.println("Close connection "+clientSocket.getLocalSocketAddress());
                 this.CloseConnection();
-                e.printStackTrace();
                 break;
             }
         }
@@ -46,13 +46,15 @@ public class serverClient extends Thread {
     private void CloseConnection(){
         try{
             if(!clientSocket.isClosed()){
+                System.out.println("Close connection: "+clientSocket.getRemoteSocketAddress());
                 clientSocket.close();
                 in.close();
                 out.close();
                 for(serverClient cl: server.serverList){
                     if(cl.equals(this)) cl.interrupt();
-                    server.serverList.remove(this);
                 }
+                server.serverList.remove(this);
+                testinfo();
             }
         }catch(IOException e){}
     }
@@ -61,7 +63,17 @@ public class serverClient extends Thread {
         try {
             out.write(msg + "\n");
             out.flush();
-        } catch (IOException ignored) {}
+            System.out.println("***Sended to"+this.clientSocket.getRemoteSocketAddress());
+        } catch (IOException ignored) {
+            this.CloseConnection();
+        }
+    }
+
+    private void testinfo(){
+        System.out.println("***length: "+server.serverList.size());
+        for(serverClient cl: server.serverList){
+            System.out.println("***"+cl.clientSocket.getRemoteSocketAddress());
+        }
 
     }
 

@@ -8,21 +8,26 @@ public class client {
     private Socket socket;
     private static int port;
     private static String serverName;
+    private static String nickname;
 
     public client(String serverName, int port) {
         this.port = port;
         this.serverName = serverName;
+
+        System.out.println(String.format("Connecting to %s:%s", serverName, port));
         try {
             this.socket = new Socket(serverName, port);
+            System.out.println("Connected to the server");
         } catch (IOException e) {
             System.err.println("Socket failed");
         }
-        System.out.println("Connected to the server");
+
 
         try {
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
             reader = new BufferedReader(new InputStreamReader(System.in));
+            this.enterNickname();
             new ReadMsg().start();
             new WriteMsg().start();
         } catch (IOException e) {
@@ -30,10 +35,19 @@ public class client {
         }
     }
 
+    private void enterNickname(){
+        System.out.print("Enter your nickname: ");
+        try{
+            nickname=reader.readLine();
+            out.write(nickname+"\n");
+            out.flush();
+        }catch(IOException e){}
+    }
+
     private void CloseConnection() {
-        System.out.println("Closed connection");
         try {
             if (!socket.isClosed()) {
+                System.out.println("Closed connection");
                 socket.close();
                 in.close();
                 out.close();
@@ -49,6 +63,7 @@ public class client {
             try {
                 while (true){
                     str = in.readLine();
+                    if (str==null) client.this.CloseConnection();
                     System.out.println(str);
                 }
             }catch(IOException e){
@@ -64,9 +79,11 @@ public class client {
                 try{
                     String str = reader.readLine();
                     if(str.equals("stop")){
+                        out.write("stop\n");
+                        out.flush();
                         client.this.CloseConnection();
                     }
-                    out.write(str+"\n");
+                    out.write(String.format("%s: %s\n", nickname, str));
                     out.flush();
                 }catch(IOException e){
                     client.this.CloseConnection();
@@ -76,6 +93,10 @@ public class client {
     }
 
     public static void main(String[] args) {
-        new client(args[0], Integer.parseInt(args[1]));
+        if(args.length>0){
+            new client(args[0], Integer.parseInt(args[1]));
+        }else{
+            new client("localhost", 7770);
+        }
     }
 }
